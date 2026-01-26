@@ -1,6 +1,7 @@
 import json
 import os
 import sys
+import random
 from datetime import datetime
 from typing import List, Dict, Tuple, Optional
 
@@ -10,15 +11,18 @@ from PIL import Image, ImageDraw, ImageFont
 from moviepy.video.io.VideoFileClip import VideoFileClip
 from moviepy.video.VideoClip import ImageClip
 from moviepy.video.compositing.CompositeVideoClip import CompositeVideoClip
-from moviepy.video.fx.Resize import Resize
-from moviepy.video.fx.Loop import Loop
-from moviepy.video.fx.CrossFadeIn import CrossFadeIn
-from moviepy.video.fx.CrossFadeOut import CrossFadeOut
-from moviepy.video.fx.Crop import Crop
+from moviepy.editor import VideoFileClip, ImageClip, CompositeVideoClip, vfx
+# from moviepy.video.fx.Resize import Resize
+# from moviepy.video.fx.Loop import Loop
+# from moviepy.video.fx.CrossFadeIn import CrossFadeIn
+# from moviepy.video.fx.CrossFadeOut import CrossFadeOut
+# from moviepy.video.fx.Crop import Crop
 
 
 URL = "https://karndiy.pythonanywhere.com/goldjsonv2"
-BG_PATH = os.path.join("assets", "bg.mp4")
+bg_random = f"bg_{random.randint(0, 9):02d}.mp4"
+print(f"bg_->{bg_random}")
+BG_PATH = os.path.join("assets", bg_random)
 OUT_PATH = "out/output.mp4"
 
 # Target vertical mobile resolution
@@ -573,30 +577,58 @@ def ensure_background(bg_path: str) -> VideoFileClip:
         raise FileNotFoundError(f"Background video not found: {bg_path}")
     bg = VideoFileClip(bg_path)
     # Fill and center-crop to vertical 1080x1920
+    # if bg.h < H:
+    #     bg_resized = bg.with_effects([Resize(height=H)])
+    # else:
+    #     bg_resized = bg.with_effects([Resize(width=W)])
+    # # Now scale to cover both dims
+    # scale_w = W / bg_resized.w
+    # scale_h = H / bg_resized.h
+    # scale = max(scale_w, scale_h)
+    # new_w = int(bg_resized.w * scale)
+    # new_h = int(bg_resized.h * scale)
+    # bg_cover = bg_resized.with_effects([Resize(new_size=(new_w, new_h))])
+    # x_center = bg_cover.w // 2
+    # y_center = bg_cover.h // 2
+    # x1 = int(x_center - W / 2)
+    # y1 = int(y_center - H / 2)
+    # bg_cropped = bg_cover.with_effects([Crop(x1=x1, y1=y1, x2=x1 + W, y2=y1 + H)])
+
+    # # Loop or trim to DURATION
+    # if bg_cropped.duration < DURATION:
+    #     loops = int(np.ceil(DURATION / bg_cropped.duration))
+    #     looped = bg_cropped.with_effects([Loop(n=loops)]).with_duration(DURATION)
+    #     return looped.without_audio()
+    # else:
+    #     return bg_cropped.subclipped(0, DURATION).without_audio()
     if bg.h < H:
-        bg_resized = bg.with_effects([Resize(height=H)])
+        bg_resized = bg.fx(vfx.resize, height=H)
     else:
-        bg_resized = bg.with_effects([Resize(width=W)])
-    # Now scale to cover both dims
+        bg_resized = bg.fx(vfx.resize, width=W)
+
     scale_w = W / bg_resized.w
     scale_h = H / bg_resized.h
     scale = max(scale_w, scale_h)
-    new_w = int(bg_resized.w * scale)
-    new_h = int(bg_resized.h * scale)
-    bg_cover = bg_resized.with_effects([Resize(new_size=(new_w, new_h))])
+
+    bg_cover = bg_resized.fx(
+        vfx.resize,
+        newsize=(int(bg_resized.w * scale), int(bg_resized.h * scale))
+    )
+
     x_center = bg_cover.w // 2
     y_center = bg_cover.h // 2
     x1 = int(x_center - W / 2)
     y1 = int(y_center - H / 2)
-    bg_cropped = bg_cover.with_effects([Crop(x1=x1, y1=y1, x2=x1 + W, y2=y1 + H)])
 
-    # Loop or trim to DURATION
+    bg_cropped = bg_cover.fx(
+        vfx.crop,
+        x1=x1, y1=y1, x2=x1 + W, y2=y1 + H
+    )
+
     if bg_cropped.duration < DURATION:
-        loops = int(np.ceil(DURATION / bg_cropped.duration))
-        looped = bg_cropped.with_effects([Loop(n=loops)]).with_duration(DURATION)
-        return looped.without_audio()
-    else:
-        return bg_cropped.subclipped(0, DURATION).without_audio()
+        bg_cropped = bg_cropped.fx(vfx.loop, duration=DURATION)
+
+    return bg_cropped.subclip(0, DURATION).without_audio()
 
 
 def build_video(entries: List[Dict[str, str]], out_path: str) -> None:
@@ -605,13 +637,22 @@ def build_video(entries: List[Dict[str, str]], out_path: str) -> None:
     # Show the latest panel immediately for the full duration (no waiting/segments)
     latest = entries[-1] if entries else {}
     prev = entries[-2] if len(entries) >= 2 else None
-    panel = make_panel_clip(latest, prev).with_start(0).with_duration(DURATION).with_position(("center", int(H * 0.14)))
-
+    #panel = make_panel_clip(latest, prev).with_start(0).with_duration(DURATION).with_position(("center", int(H * 0.14)))
+    panel = (
+    make_panel_clip(latest, prev)
+    .set_start(0)
+    .set_duration(DURATION)
+    .set_position(("center", int(H * 0.14))))
+   
     # Footer watermark/info (persistent for entire duration)
     footer_text = "ข้อมูลจากสมาคมค้าทองคำ"
     footer_clip = make_text_clip(footer_text, width=int(W * 0.92), max_height=140,
                                  font_color=(230, 230, 230), bg_color=(0, 0, 0, 120), pad=32)
-    footer_clip = footer_clip.with_position(("center", H - footer_clip.h - 180)).with_duration(DURATION)
+    #footer_clip = footer_clip.with_position(("center", H - footer_clip.h - 180)).with_duration(DURATION)
+    footer_clip = (
+    footer_clip
+    .set_position(("center", H - footer_clip.h - 180))
+    .set_duration(DURATION))
 
     comp = CompositeVideoClip([bg, footer_clip, panel], size=(W, H))
     comp.write_videofile(out_path, fps=FPS, codec="libx264", audio=False, preset="medium", threads=4)

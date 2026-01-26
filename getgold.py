@@ -1,132 +1,149 @@
-# getgold.py  (refactor: robust + clear exit code)
-import os
-import sys
 import json
 import time
 import requests
-from bs4 import BeautifulSoup
+import sys
 from datetime import datetime
 from pathlib import Path
+from playwright.sync_api import sync_playwright
+from bs4 import BeautifulSoup
 
-GTO_URL = 'https://www.goldtraders.or.th/UpdatePriceList.aspx'
+# Try to import xnowtime from your local 'getgold.py', otherwise use a fallback
+try:
+    from getgold import xnowtime
+except ImportError:
+    def xnowtime():
+        return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+# --- CONFIGURATION ---
 POST_URL = 'https://karndiy.pythonanywhere.com/cjson/goldjson-v2'
-DATA_DIR = Path("data")
-OUT_JSON = DATA_DIR / "gold_prices.json"
-
+OUTPUT_FILE = "gold_prices.json"
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+    "Content-Type": "application/json",
+    "User-Agent": "GoldScraper/1.0"
 }
 
-def xnowtime():
-    return datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-
-def ensure_dir(p: Path):
-    p.mkdir(parents=True, exist_ok=True)
-
-def save_to_json(data, filepath: Path):
-    ensure_dir(filepath.parent)
-    with open(filepath, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-
-def parse_be_datetime(s: str):
-    """
-    รับรูปแบบ '28/10/2568 09:25' (วัน/เดือน/ปีพ.ศ. เวลา)
-    คืนค่า iso8601 (ปีคริสต์ศักราช) เช่น '2025-10-28 09:25:00'
-    ถ้าแปลงไม่ได้ คืน None
-    """
+def post_data(url: str, payload: list):
+    """Sends the scraped data to the remote server."""
     try:
-        date_part, time_part = s.split()
-        d, m, y_be = date_part.split("/")
-        y_ce = int(y_be) - 543
-        dt = datetime.strptime(f"{d}/{m}/{y_ce} {time_part}", "%d/%m/%Y %H:%M")
-        return dt.strftime("%Y-%m-%d %H:%M:%S")
-    except Exception:
-        return None
-
-def scrape_gold_data(url=GTO_URL, retries=3, backoff=1.5, timeout=12):
-    last_err = None
-    for attempt in range(1, retries+1):
-        try:
-            res = requests.get(url, headers=HEADERS, timeout=timeout)
-            res.raise_for_status()
-            res.encoding = "utf-8"
-            soup = BeautifulSoup(res.text, 'html.parser')
-
-            table = soup.find("table", {"id": "DetailPlace_MainGridView"})
-            if not table:
-                print(f"[{xnowtime()}] Table not found (id=DetailPlace_MainGridView)")
-                return []
-
-            rows = table.find_all("tr")
-            if len(rows) <= 1:
-                print(f"[{xnowtime()}] No data rows in table")
-                return []
-
-            data = []
-            for row in rows[1:]:  # skip header
-                cols = row.find_all("td")
-                if len(cols) >= 9:
-                    asdate = cols[0].get_text(strip=True)
-                    item = {
-                        'asdate': asdate,
-                        'nqy': cols[1].get_text(strip=True),
-                        'blbuy': cols[2].get_text(strip=True),
-                        'blsell': cols[3].get_text(strip=True),
-                        'ombuy': cols[4].get_text(strip=True),
-                        'omsell': cols[5].get_text(strip=True),
-                        'goldspot': cols[6].get_text(strip=True),
-                        'bahtusd': cols[7].get_text(strip=True),
-                        'diff': cols[8].get_text(strip=True),
-                    }
-                    # เพิ่มฟิลด์วันที่แบบ ค.ศ. เผื่อใช้งานภายหลัง (ไม่ไปกระทบโครงสร้างเดิม)
-                    iso = parse_be_datetime(asdate)
-                    if iso:
-                        item['asdate_iso'] = iso
-                    data.append(item)
-
-            # เรียงล่าสุด→เก่าสุด ตามโค้ดเดิม
-            data = data[::-1]
-            return data
-        except Exception as e:
-            last_err = e
-            print(f"[{xnowtime()}] Attempt {attempt}/{retries} scrape error: {e}")
-            if attempt < retries:
-                time.sleep(backoff ** attempt)
-    print(f"[{xnowtime()}] Error while scraping (final): {last_err}")
-    return []
-
-def post_data(url: str, payload):
-    try:
+        # payload is the list of dicts directly
         r = requests.post(url, json=payload, headers=HEADERS, timeout=15)
         return r.status_code, r.text
     except Exception as e:
         return None, str(e)
 
-def main():
-    data = scrape_gold_data()
-    if not data:
-        print("No data scraped, aborting.")
-        # บันทึกไฟล์ว่างไว้เผื่อ debug
-        save_to_json([], OUT_JSON)
-        return 2  # exit code != 0 เพื่อให้ .bat ทราบว่าล้มเหลว
+def get_gold_price_data():
+    """Scrapes gold prices using Playwright."""
+    url = "https://www.goldtraders.or.th/updatepricelist"
+    print(f"[{xnowtime()}] Connecting to {url} ...")
+    
+    with sync_playwright() as p:
+        # Launch headless browser
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
+        
+        try:
+            # 1. Visit URL
+            page.goto(url, timeout=60000)
+            
+            # 2. Wait for table
+            # print("Waiting for table data...")
+            page.wait_for_selector("table", timeout=30000)
+            time.sleep(3) # Extra wait for rendering
+            
+            # 3. Get HTML
+            html_content = page.content()
+            
+        except Exception as e:
+            browser.close()
+            print(f"Error during scraping: {e}")
+            return []
+            
+        browser.close()
 
-    # บันทึก local ก่อน (กัน POST ล้มเหลวแล้วไม่มีไฟล์)
-    save_to_json(data, OUT_JSON)
-    print(f"[{xnowtime()}] Saved {len(data)} records to {OUT_JSON}")
+    # 4. Parse with BeautifulSoup
+    soup = BeautifulSoup(html_content, 'html.parser')
+    table = soup.find('table')
+    
+    if not table:
+        print("Table not found!")
+        return []
 
-    status, body = post_data(POST_URL, data)
-    if status == 201:
-        print(f"[{xnowtime()}] POST OK 201")
-        # พิมพ์ข้อมูล (แบบเดิม) ถ้าต้องการให้ batch เห็นผลลัพธ์
-        print(data)
-        return 0
-    elif status is None:
-        print(f"[{xnowtime()}] POST failed: {body}")
-        return 3
-    else:
-        print(f"[{xnowtime()}] POST error: HTTP {status} - {body[:300]}...")
-        # ยังถือว่าล้มเหลวเพื่อให้ batch หยุดตามเงื่อนไขคุณ
-        return 4
+    data_list = []
+    rows = table.find_all('tr')
+    
+    for row in rows:
+        cols = row.find_all('td')
+        
+        # Ensure enough columns (9+)
+        if len(cols) >= 9:
+            txt = [c.get_text(strip=True) for c in cols]
+            
+            # Check if first col is Date
+            if '/' not in txt[0]:
+                continue
+            
+            item = {
+                "asdate": f"{txt[0]} {txt[1]}",
+                "nqy": txt[2],
+                "ombuy": txt[3],
+                "omsell": txt[4],
+                "blbuy": txt[5],
+                "blsell": txt[6],
+                "goldspot": txt[7],
+                "bahtusd": txt[8],
+                "diff": txt[9]
+            }
+            data_list.append(item)
+
+    return data_list
+
+def save_and_sort_json(data, filename):
+    """Sorts data by date and saves to JSON file."""
+    # --- SORTING LOGIC ---
+    try:
+        # Sort by Date string parsing
+        data.sort(
+            key=lambda x: datetime.strptime(x['asdate'], '%d/%m/%Y %H:%M')
+            # Add reverse=True here if you want Latest First
+        )
+        print("✅ Data sorted by Time")
+    except Exception as e:
+        print(f"⚠️ Warning: Could not sort data ({e}). Saving unsorted.")
+
+    # Save to file
+    try:
+        with open(filename, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        print(f"✅ Successfully exported {len(data)} items to '{filename}'")
+    except Exception as e:
+        print(f"❌ Error saving file: {e}")
 
 if __name__ == "__main__":
-    sys.exit(main())
+    # 1. Scrape Data
+    gold_data = get_gold_price_data()
+    
+    if gold_data:
+        # 2. Save & Sort
+        save_and_sort_json(gold_data, OUTPUT_FILE)
+        
+        # 3. Post Data
+        print(f"[{xnowtime()}] Posting {len(gold_data)} items to server...")
+        status, body = post_data(POST_URL, gold_data)
+        
+        # Check HTTP Status Code
+        if status == 201 or status == 200:
+            print(f"[{xnowtime()}] POST OK {status}")
+            # print(gold_data) # Uncomment to see data in console
+            sys.exit(0) # Exit with Success Code
+            
+        elif status is None:
+            print(f"[{xnowtime()}] POST failed (Connection Error): {body}")
+            sys.exit(3) # Exit with Network Error Code
+            
+        else:
+            print(f"[{xnowtime()}] POST error: HTTP {status} - {body[:300]}...")
+            sys.exit(4) # Exit with HTTP Error Code
+            
+    else:
+        print(f"[{xnowtime()}] No data extracted.")
+        sys.exit(1) # Exit with No Data Code
