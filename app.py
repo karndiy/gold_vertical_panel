@@ -318,19 +318,21 @@ def _draw_triangle(draw: ImageDraw.ImageDraw, center: Tuple[int, int], size: int
 
 def make_panel_clip(entry: Dict[str, str], prev_entry: Optional[Dict[str, str]]) -> ImageClip:
     # Card size relative to screen
-    card_w = int(W * 0.92)
-    card_h = int(H * 0.52)
-    radius = 28
+    card_w = int(W * 0.94)
+    card_h = int(H * 0.55)
+    radius = 32
 
-    # Colors
-    header_c1 = (255, 167, 38)   # #FFA726
-    header_c2 = (251, 140, 0)    # #FB8C00
+    # Professional Color Scheme (Navy Blue + Gold)
+    header_c1 = (25, 55, 109)      # Dark Navy Blue
+    header_c2 = (41, 84, 144)      # Medium Navy Blue
+    accent_gold = (212, 175, 55)   # Professional Gold
     table_bg = (255, 255, 255)
-    table_head_bg = (255, 248, 225)  # light yellow
-    grid = (224, 224, 224)
-    text_primary = (34, 34, 34)
-    text_muted = (120, 120, 120)
-    green = (46, 125, 50)
+    table_head_bg = (240, 245, 250)  # Light blue-gray
+    grid = (200, 210, 220)
+    text_primary = (30, 30, 30)
+    text_muted = (100, 110, 120)
+    green = (34, 139, 34)
+    red = (220, 53, 69)
 
     # Fonts
     title_font = load_thai_font([
@@ -386,11 +388,17 @@ def make_panel_clip(entry: Dict[str, str], prev_entry: Optional[Dict[str, str]])
     header_img.paste(grad, (0, 0))
     img.paste(header_img, (1, 1))
 
-    # Header text
-    title = "ราคาทองตามประกาศสมาคมค้าทองคำ"
+    # Header text with subtitle
     draw = ImageDraw.Draw(img)
+    title = "ราคาทองคำวันนี้"
+    subtitle = "ข้อมูลจากสมาคมค้าทองคำ"
+    
     tw = draw.textlength(title, font=title_font)
-    draw.text(((card_w - tw) // 2, int(header_h * 0.28)), title, font=title_font, fill=(255, 255, 255))
+    draw.text(((card_w - tw) // 2, int(header_h * 0.20)), title, font=title_font, fill=(255, 255, 255))
+    
+    # Subtitle in gold
+    stw = draw.textlength(subtitle, font=small_font)
+    draw.text(((card_w - stw) // 2, int(header_h * 0.60)), subtitle, font=small_font, fill=accent_gold)
 
     # Metrics chip row (Diff) — centered
     chip_y = header_h + int(card_h * 0.02)
@@ -404,7 +412,7 @@ def make_panel_clip(entry: Dict[str, str], prev_entry: Optional[Dict[str, str]])
     dv = (diff_val or 0)
     is_up = dv > 0                       # or >= 0 if zero should be "UP"
     m_head = "ขาขึ้น" if is_up else "ขาลง"
-    xbg = (0, 150, 136) if is_up else (211, 47, 47)
+    xbg = green if is_up else red
 
    
     start_x = (card_w - mw) // 2
@@ -502,20 +510,27 @@ def make_panel_clip(entry: Dict[str, str], prev_entry: Optional[Dict[str, str]])
     draw.text((lx + 16, ly), "วันนี้", font=label_font, fill=text_primary)
     # Safely parse diff (handles commas/empty) and derive colors/arrows
     delta_val = parse_money(diff_text)
-    buy_text, buy_color = arrow_and_color(delta_val)
-    sell_text, sell_color = arrow_and_color(delta_val)
-    # draw small triangle icon + value
+    delta_color = green if (delta_val or 0) > 0 else red if (delta_val or 0) < 0 else text_muted
+    is_up = (delta_val or 0) >= 0
+    
+    # Merge both cells - draw in the center spanning both columns
     tri_size = 24
-    up_buy = (delta_val or 0) >= 0
-    up_sell = (delta_val or 0) >= 0
-    # buy cell
-    bx, by = _text_center_y(draw, mbox, diff_text, label_font)  # buy_text
-    _draw_triangle(draw, (mbox[0] + 28, by + 16), tri_size, buy_color, up=up_buy)
-    draw.text((mbox[0] + 28 + tri_size + 10, by), diff_text+" ", font=label_font, fill=buy_color)
-    # sell cell
-    sx, sy = _text_center_y(draw, rbox, diff_text, label_font) # sell_text
-    _draw_triangle(draw, (rbox[0] + 28, sy + 16), tri_size, sell_color, up=up_sell)
-    draw.text((rbox[0] + 28 + tri_size + 10, sy), diff_text+" ", font=label_font, fill=sell_color)
+    # Calculate merged cell area (columns 1 and 2)
+    merged_x1 = mbox[0]
+    merged_x2 = rbox[2]
+    merged_y1 = mbox[1]
+    merged_y2 = mbox[3]
+    merged_w = merged_x2 - merged_x1
+    
+    # Center the text in merged area
+    text_w = draw.textlength(diff_text + " ", font=label_font)
+    total_w = tri_size + 10 + text_w
+    start_x = merged_x1 + (merged_w - total_w) // 2
+    center_y = (merged_y1 + merged_y2) // 2
+    
+    # Draw triangle and text centered
+    _draw_triangle(draw, (start_x + tri_size // 2, center_y), tri_size, delta_color, up=is_up)
+    draw.text((start_x + tri_size + 10, center_y - 16), diff_text + " ", font=label_font, fill=delta_color)
 
 
 
@@ -535,7 +550,7 @@ def make_panel_clip(entry: Dict[str, str], prev_entry: Optional[Dict[str, str]])
         f"${goldspot}",
         chip_l_font,
         chip_r_font,
-        bg=(255, 153, 0),
+        bg=accent_gold,
     )
     x_cursor += chip_w1 + 16
     # right chip: USD/THB
@@ -546,7 +561,7 @@ def make_panel_clip(entry: Dict[str, str], prev_entry: Optional[Dict[str, str]])
         f"{bahtusd}",
         chip_l_font,
         chip_r_font,
-        bg=(0, 150, 136),
+        bg=header_c2,
     )
 
    
@@ -645,9 +660,9 @@ def build_video(entries: List[Dict[str, str]], out_path: str) -> None:
     .set_position(("center", int(H * 0.14))))
    
     # Footer watermark/info (persistent for entire duration)
-    footer_text = "ข้อมูลจากสมาคมค้าทองคำ"
-    footer_clip = make_text_clip(footer_text, width=int(W * 0.92), max_height=140,
-                                 font_color=(230, 230, 230), bg_color=(0, 0, 0, 120), pad=32)
+    footer_text = "ที่มา: สมาคมค้าทองคำ"
+    footer_clip = make_text_clip(footer_text, width=int(W * 0.94), max_height=140,
+                                 font_color=(255, 255, 255), bg_color=(25, 55, 109, 200), pad=28)
     #footer_clip = footer_clip.with_position(("center", H - footer_clip.h - 180)).with_duration(DURATION)
     footer_clip = (
     footer_clip

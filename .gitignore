@@ -1,0 +1,127 @@
+# ========================================
+# Python
+# ========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv
+
+# ========================================
+# Sensitive Files (NEVER COMMIT)
+# ========================================
+config.json
+client_secrets.json
+client_secret_*.json
+token.pickle
+*.pickle
+credentials.json
+*.pem
+*.key
+.env
+
+# ========================================
+# Output Files
+# ========================================
+out/
+output/
+*.mp4
+*.avi
+*.mov
+
+# Data Files (Optional - uncomment if needed)
+# data/
+# *.json
+
+# ========================================
+# Database
+# ========================================
+*.db
+*.sqlite
+*.sqlite3
+gold_tracker.db
+
+# ========================================
+# Large Assets (Videos/Images)
+# ========================================
+assets/*.mp4
+assets/*.avi
+assets/*.mov
+pygold_img/
+
+# Keep folder structure but ignore contents
+!assets/.gitkeep
+!out/.gitkeep
+
+# ========================================
+# Logs
+# ========================================
+*.log
+logs/
+*.tmp
+
+# ========================================
+# IDE / Editor
+# ========================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ========================================
+# OS
+# ========================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Desktop.ini
+
+# ========================================
+# Temporary Files
+# ========================================
+*.bak
+*.backup
+*copy.py
+*copy*.py
+*.old
+New Text Document.txt
+
+# ========================================
+# Documentation (Optional)
+# ========================================
+# UPGRADE_INSTRUCTIONS.txt
+# SYSTEM_REQUIREMENTS.md
+
+# ========================================
+# Playwright
+# ========================================
+.playwright/
+playwright-state/

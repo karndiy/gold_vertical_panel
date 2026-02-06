@@ -1,0 +1,79 @@
+# Professional Color Scheme Upgrade for app.py
+# 
+# Changes to make in app.py for more professional look:
+
+## 1. Update Colors (around line 325-333)
+Replace:
+    header_c1 = (255, 167, 38)   # Orange
+    header_c2 = (251, 140, 0)    # Orange
+    
+With:
+    header_c1 = (25, 55, 109)    # Dark Navy Blue
+    header_c2 = (41, 84, 144)    # Medium Navy Blue
+    accent_gold = (212, 175, 55) # Professional Gold
+
+Replace:
+    table_head_bg = (255, 248, 225)  # light yellow
+    
+With:
+    table_head_bg = (240, 245, 250)  # Light blue-gray
+
+Replace:
+    green = (46, 125, 50)
+    
+With:
+    green = (34, 139, 34)  # Forest Green
+    red = (220, 53, 69)    # Professional Red
+
+## 2. Update Header Text (around line 390)
+Replace:
+    title = "ราคาทองตามประกาศสมาคมค้าทองคำ"
+    
+With:
+    title = "ราคาทองคำวันนี้"
+    subtitle = "ข้อมูลจากสมาคมค้าทองคำ"
+    
+    # Draw title
+    tw = draw.textlength(title, font=title_font)
+    draw.text(((card_w - tw) // 2, int(header_h * 0.20)), title, font=title_font, fill=(255, 255, 255))
+    
+    # Draw subtitle in gold
+    stw = draw.textlength(subtitle, font=small_font)
+    draw.text(((card_w - stw) // 2, int(header_h * 0.58)), subtitle, font=small_font, fill=(212, 175, 55))
+
+## 3. Update Card Dimensions (around line 321-323)
+Replace:
+    card_w = int(W * 0.92)
+    card_h = int(H * 0.52)
+    radius = 28
+    
+With:
+    card_w = int(W * 0.94)
+    card_h = int(H * 0.55)
+    radius = 32
+
+## 4. Update Footer (around line 648)
+Replace:
+    footer_text = "ข้อมูลจากสมาคมค้าทองคำ"
+    
+With:
+    footer_text = "ที่มา: สมาคมค้าทองคำ | อัปเดตทุก 5-10 นาที"
+    
+And change colors:
+    font_color=(255, 255, 255), bg_color=(25, 55, 109, 200)
+
+## 5. Update Chip Colors (around line 407)
+Replace:
+    xbg = (0, 150, 136) if is_up else (211, 47, 47)
+    
+With:
+    xbg = (34, 139, 34) if is_up else (220, 53, 69)
+
+## 6. Update Bottom Chips (around line 538, 549)
+Replace:
+    bg=(255, 153, 0)  # Gold Spot chip
+    bg=(0, 150, 136)  # USD/THB chip
+    
+With:
+    bg=(212, 175, 55)  # Professional Gold
+    bg=(41, 84, 144)   # Navy Blue

@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ราคาทองคำ - Gold Price</title>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary-gold: #F39C12;
+            --light-gold: #FFF9C4;
+            --text-green: #006400;
+            --text-red: #d32f2f;
+        }
+
+        body {
+            font-family: 'Kanit', sans-serif;
+            background-color: #f4f4f4;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .gold-card {
+            background: white;
+            width: 100%;
+            max-width: 480px;
+            border: 3px solid var(--primary-gold);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, #F39C12 0%, #FFB74D 100%);
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            color: #4a3b00;
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .logo-placeholder {
+            background: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-right: 12px;
+            border: 2px solid #8d6e63;
+            color: #d35400;
+        }
+
+        .price-grid {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr 1fr;
+            border-bottom: 2px solid var(--primary-gold);
+        }
+
+        .grid-header {
+            background-color: var(--light-gold);
+            padding: 10px;
+            text-align: center;
+            font-weight: 600;
+            color: #555;
+        }
+        
+        .grid-header.title { text-align: left; padding-left: 15px; font-size: 1.2rem; }
+
+        .grid-cell {
+            padding: 12px 5px;
+            text-align: center;
+            font-size: 1.4rem;
+            color: var(--text-green);
+            font-weight: 500;
+            border-top: 1px solid #eee;
+        }
+
+        .grid-cell.label {
+            text-align: left;
+            padding-left: 15px;
+            font-size: 1.1rem;
+            color: #333;
+            font-weight: 400;
+        }
+
+        .summary-row {
+            background-color: var(--light-gold);
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid var(--primary-gold);
+        }
+
+        /* ตกแต่งสีเขียว/แดง ตามค่าบวก/ลบ */
+        .text-up { color: var(--text-green); }
+        .text-down { color: var(--text-red); }
+
+        .diff-val, .label-today {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .bottom-info {
+            padding: 10px 15px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.95rem;
+            color: #444;
+            font-weight: 600;
+            background: white;
+        }
+
+        /* History Table Styles */
+        .history-container { width: 100%; max-width: 480px; }
+        .history-title { margin-bottom: 10px; font-weight: 600; color: #444; }
+        table.history-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            font-size: 0.9rem;
+        }
+        .history-table th { background: #eee; padding: 10px; text-align: center; }
+        .history-table td { padding: 10px; border-bottom: 1px solid #f0f0f0; text-align: center; }
+    </style>
+</head>
+<body>
+
+    {% if prices %}
+    {% set latest = prices[0] %}
+    
+    {% set color_class = 'text-up' if total_val > 0 else 'text-down' %}
+    {% set icon_class = 'fa-caret-up' if total_val > 0 else 'fa-caret-down' %}
+
+    <div class="gold-card">
+        <div class="card-header">
+            <div class="logo-placeholder"><i class="fas fa-coins"></i></div>
+            <span>ราคาทองตามประกาศสมาคมค้าทองคำ</span>
+        </div>
+
+        <div class="price-grid">
+            <div class="grid-header title">96.5%</div>
+            <div class="grid-header">รับซื้อ</div>
+            <div class="grid-header">ขายออก</div>
+
+            <div class="grid-cell label">ทองคำแท่ง</div>
+            <div class="grid-cell">{{ latest.blbuy }}</div>
+            <div class="grid-cell">{{ latest.blsell }}</div>
+
+            <div class="grid-cell label">ทองรูปพรรณ</div>
+            <div class="grid-cell">{{ latest.ombuy }}</div>
+            <div class="grid-cell">{{ latest.omsell }}</div>
+        </div>
+
+        <div class="summary-row">
+            <div class="label-today {{ color_class }}">
+                วันนี้ 
+                {% if total_val != 0 %}
+                    <i class="fas {{ icon_class }}"></i>
+                {% endif %}
+                {{ total_diff }}
+            </div>
+            
+            <div class="diff-val {{ color_class }}">
+                {% if total_val != 0 %}
+                    <i class="fas {{ icon_class }}"></i>
+                {% endif %}
+                {{ total_diff }}
+            </div>
+        </div>
+
+        <div class="bottom-info">
+            <div>{{ latest.display_date }}</div>
+            <div>เวลา {{ latest.display_time }} น. (ครั้งที่ {{ latest.nqy }})</div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="history-container">
+        <div class="history-title"><i class="fas fa-history"></i> ประวัติราคา (ย้อนหลัง)</div>
+        <table class="history-table">
+            <thead>
+                <tr>
+                    <th>ครั้งที่</th>
+                    <th>เวลา</th>
+                    <th>แท่ง (ขาย)</th>
+                    <th>รูปพรรณ (ขาย)</th>
+                    <th>เปลี่ยนแปลง</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in prices %}
+                <tr>
+                    <td>{{ p.nqy }}</td>
+                    <td>{{ p.display_time }}</td>
+                    <td>{{ p.blsell }}</td>
+                    <td>{{ p.omsell }}</td>
+                    <td style="color: {{ 'green' if p.diff.replace(',','')|int > 0 else 'red' }}">
+                        {{ p.diff }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+</body>
+</html>
