@@ -4,6 +4,7 @@ import sys
 import random
 from datetime import datetime
 from typing import List, Dict, Tuple, Optional
+import argparse # Added for command-line arguments
 
 import requests
 import numpy as np
@@ -12,24 +13,29 @@ from moviepy.video.io.VideoFileClip import VideoFileClip
 from moviepy.video.VideoClip import ImageClip
 from moviepy.video.compositing.CompositeVideoClip import CompositeVideoClip
 from moviepy.editor import VideoFileClip, ImageClip, CompositeVideoClip, vfx
-# from moviepy.video.fx.Resize import Resize
-# from moviepy.video.fx.Loop import Loop
-# from moviepy.video.fx.CrossFadeIn import CrossFadeIn
-# from moviepy.video.fx.CrossFadeOut import CrossFadeOut
-# from moviepy.video.fx.Crop import Crop
 
+# Get the directory of the current script (app.py)
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 URL = "https://karndiy.pythonanywhere.com/goldjsonv2"
-bg_random = f"bg_{random.randint(0, 9):02d}.mp4"
-print(f"bg_->{bg_random}")
-BG_PATH = os.path.join("assets", bg_random)
-OUT_PATH = "out/output.mp4"
+
+# Default background selection logic (can be overridden by args)
+BG_PATH_DEFAULT = os.path.join(SCRIPT_DIR, "assets", f"bg_{random.randint(0, 9):02d}.mp4")
+OUT_VIDEO_PATH_DEFAULT = os.path.join(SCRIPT_DIR, "out", "output.mp4")
+OUT_IMAGE_PATH_DEFAULT = os.path.join(SCRIPT_DIR, "out", "output_panel.jpg")
 
 # Target vertical mobile resolution
 W, H = 1080, 1920
 DURATION = 10  # seconds
 FPS = 15
 
+# --- Customizable elements mapping (add more as assets are available) ---
+BACKGROUND_THEMES = {
+    "random": None, # Will use default random logic
+    "elegant": os.path.join(SCRIPT_DIR, "assets", "bg_elegant.mp4"), # Example specific file
+    "modern": os.path.join(SCRIPT_DIR, "assets", "bg_modern.mp4"),   # Example specific file
+    # Add more themes and their corresponding file paths here
+}
 
 def fetch_entries(url: str) -> List[Dict[str, str]]:
     resp = requests.get(url, timeout=15)
@@ -107,6 +113,7 @@ def make_text_clip(text: str, width: int, max_height: int,
                    align: str = "ls") -> ImageClip:
     # Load fonts (prefer Thai-capable fonts)
     title_font = try_load_font([
+        os.path.join(SCRIPT_DIR, "fonts", "THSarabunNew.ttf"), # Assuming a fonts folder
         ("C:/Windows/Fonts/THSarabunNew.ttf", 72),
         ("C:/Windows/Fonts/LeelawUI.ttf", 64),
         ("C:/Windows/Fonts/Tahoma.ttf", 60),
@@ -117,6 +124,7 @@ def make_text_clip(text: str, width: int, max_height: int,
         ("arialuni.ttf", 60),
     ])
     body_font = try_load_font([
+        os.path.join(SCRIPT_DIR, "fonts", "THSarabunNew.ttf"),
         ("C:/Windows/Fonts/THSarabunNew.ttf", 56),
         ("C:/Windows/Fonts/LeelawUI.ttf", 50),
         ("C:/Windows/Fonts/Tahoma.ttf", 48),
@@ -336,38 +344,45 @@ def make_panel_clip(entry: Dict[str, str], prev_entry: Optional[Dict[str, str]])
 
     # Fonts
     title_font = load_thai_font([
+        (os.path.join(SCRIPT_DIR, "fonts", "LeelawUI.ttf"), 60), # Assuming fonts folder
         ("C:/Windows/Fonts/LeelawUI.ttf", 60),
         ("C:/Windows/Fonts/THSarabunNew.ttf", 72),
         ("C:/Windows/Fonts/Tahoma.ttf", 56),
         ("C:/Windows/Fonts/segoeui.ttf", 56),
     ])
     head_font = load_thai_font([
+        (os.path.join(SCRIPT_DIR, "fonts", "LeelawUI.ttf"), 48),
         ("C:/Windows/Fonts/LeelawUI.ttf", 48),
         ("C:/Windows/Fonts/THSarabunNew.ttf", 60),
         ("C:/Windows/Fonts/Tahoma.ttf", 44),
         ("C:/Windows/Fonts/segoeui.ttf", 44),
     ])
     label_font = load_thai_font([
+        (os.path.join(SCRIPT_DIR, "fonts", "LeelawUI.ttf"), 46),
         ("C:/Windows/Fonts/LeelawUI.ttf", 46),
         ("C:/Windows/Fonts/THSarabunNew.ttf", 56),
         ("C:/Windows/Fonts/Tahoma.ttf", 42),
         ("C:/Windows/Fonts/segoeui.ttf", 42),
     ])
     num_font = load_thai_font([
+        (os.path.join(SCRIPT_DIR, "fonts", "arialbd.ttf"), 48),
         ("C:/Windows/Fonts/arialbd.ttf", 48),
         ("C:/Windows/Fonts/Tahoma.ttf", 48),
         ("C:/Windows/Fonts/segoeuib.ttf", 48),
     ])
     chip_l_font = load_thai_font([
+        (os.path.join(SCRIPT_DIR, "fonts", "LeelawUI.ttf"), 40),
         ("C:/Windows/Fonts/LeelawUI.ttf", 40),
         ("C:/Windows/Fonts/Tahoma.ttf", 36),
         ("C:/Windows/Fonts/segoeui.ttf", 36),
     ])
     chip_r_font = load_thai_font([
+        (os.path.join(SCRIPT_DIR, "fonts", "arialbd.ttf"), 40),
         ("C:/Windows/Fonts/arialbd.ttf", 40),
         ("C:/Windows/Fonts/Tahoma.ttf", 40),
     ])
     small_font = load_thai_font([
+        (os.path.join(SCRIPT_DIR, "fonts", "LeelawUI.ttf"), 40),
         ("C:/Windows/Fonts/LeelawUI.ttf", 40),
         ("C:/Windows/Fonts/Tahoma.ttf", 36),
         ("C:/Windows/Fonts/segoeui.ttf", 36),
@@ -591,31 +606,6 @@ def ensure_background(bg_path: str) -> VideoFileClip:
     if not os.path.exists(bg_path):
         raise FileNotFoundError(f"Background video not found: {bg_path}")
     bg = VideoFileClip(bg_path)
-    # Fill and center-crop to vertical 1080x1920
-    # if bg.h < H:
-    #     bg_resized = bg.with_effects([Resize(height=H)])
-    # else:
-    #     bg_resized = bg.with_effects([Resize(width=W)])
-    # # Now scale to cover both dims
-    # scale_w = W / bg_resized.w
-    # scale_h = H / bg_resized.h
-    # scale = max(scale_w, scale_h)
-    # new_w = int(bg_resized.w * scale)
-    # new_h = int(bg_resized.h * scale)
-    # bg_cover = bg_resized.with_effects([Resize(new_size=(new_w, new_h))])
-    # x_center = bg_cover.w // 2
-    # y_center = bg_cover.h // 2
-    # x1 = int(x_center - W / 2)
-    # y1 = int(y_center - H / 2)
-    # bg_cropped = bg_cover.with_effects([Crop(x1=x1, y1=y1, x2=x1 + W, y2=y1 + H)])
-
-    # # Loop or trim to DURATION
-    # if bg_cropped.duration < DURATION:
-    #     loops = int(np.ceil(DURATION / bg_cropped.duration))
-    #     looped = bg_cropped.with_effects([Loop(n=loops)]).with_duration(DURATION)
-    #     return looped.without_audio()
-    # else:
-    #     return bg_cropped.subclipped(0, DURATION).without_audio()
     if bg.h < H:
         bg_resized = bg.fx(vfx.resize, height=H)
     else:
@@ -646,40 +636,115 @@ def ensure_background(bg_path: str) -> VideoFileClip:
     return bg_cropped.subclip(0, DURATION).without_audio()
 
 
-def build_video(entries: List[Dict[str, str]], out_path: str) -> None:
-    bg = ensure_background(BG_PATH)
+def build_video(entries: List[Dict[str, str]], out_video_path: str, 
+                background_theme: str = "random", 
+                custom_message: str = "", 
+                logo_url: str = "",
+                out_image_path: Optional[str] = None) -> None:
+    
+    # Determine background video path based on theme
+    bg_video_path = BG_PATH_DEFAULT
+    if background_theme in BACKGROUND_THEMES and BACKGROUND_THEMES[background_theme] is not None:
+        bg_video_path = BACKGROUND_THEMES[background_theme]
+    
+    # Create background video clip
+    bg = ensure_background(bg_video_path)
+    
+    all_clips = [bg]
 
     # Show the latest panel immediately for the full duration (no waiting/segments)
     latest = entries[-1] if entries else {}
     prev = entries[-2] if len(entries) >= 2 else None
-    #panel = make_panel_clip(latest, prev).with_start(0).with_duration(DURATION).with_position(("center", int(H * 0.14)))
     panel = (
     make_panel_clip(latest, prev)
     .set_start(0)
     .set_duration(DURATION)
     .set_position(("center", int(H * 0.14))))
+    all_clips.append(panel)
+
+    # Save static image if path is provided
+    if out_image_path:
+        try:
+            # Get the raw PIL Image from the panel clip
+            # This requires rendering the first frame of the ImageClip
+            # A simpler way is to extract the PIL Image used to create the clip directly
+            if isinstance(panel, ImageClip):
+                panel_pil_image = Image.fromarray(panel.img)
+            else:
+                # If panel is a CompositeVideoClip or similar, render a frame
+                panel_pil_image = Image.fromarray(panel.get_frame(0))
+
+            # Ensure output directory exists for the image
+            os.makedirs(os.path.dirname(out_image_path), exist_ok=True)
+            panel_pil_image.save(out_image_path)
+            print(f"[APP] Saved static panel image: {out_image_path}")
+        except Exception as e:
+            print(f"Error saving static panel image to {out_image_path}: {e}")
    
     # Footer watermark/info (persistent for entire duration)
     footer_text = "ที่มา: สมาคมค้าทองคำ"
     footer_clip = make_text_clip(footer_text, width=int(W * 0.94), max_height=140,
                                  font_color=(255, 255, 255), bg_color=(25, 55, 109, 200), pad=28)
-    #footer_clip = footer_clip.with_position(("center", H - footer_clip.h - 180)).with_duration(DURATION)
     footer_clip = (
     footer_clip
     .set_position(("center", H - footer_clip.h - 180))
     .set_duration(DURATION))
+    all_clips.append(footer_clip)
 
-    comp = CompositeVideoClip([bg, footer_clip, panel], size=(W, H))
-    comp.write_videofile(out_path, fps=FPS, codec="libx264", audio=False, preset="medium", threads=4)
+    # Add Custom Message if provided
+    if custom_message:
+        custom_msg_clip = make_text_clip(custom_message, width=int(W * 0.8), max_height=100,
+                                         font_color=(255, 255, 0), bg_color=(0, 0, 0, 180), pad=15)
+        # Position above the footer, adjust as needed
+        custom_msg_clip = (
+        custom_msg_clip
+        .set_position(("center", H - custom_msg_clip.h - footer_clip.h - 200))
+        .set_duration(DURATION))
+        all_clips.append(custom_msg_clip)
+
+    # Add Logo if URL provided
+    if logo_url:
+        try:
+            logo_response = requests.get(logo_url, stream=True, timeout=10)
+            logo_response.raise_for_status()
+            logo_img = Image.open(logo_response.raw)
+            
+            # Resize logo to fit (e.g., max width 200, maintain aspect ratio)
+            max_logo_w = 200
+            if logo_img.width > max_logo_w:
+                logo_img = logo_img.resize((max_logo_w, int(logo_img.height * (max_logo_w / logo_img.width))))
+
+            logo_clip = ImageClip(np.array(logo_img)).set_duration(DURATION)
+            # Position logo (e.g., top-right corner)
+            logo_clip = logo_clip.set_position((W - logo_img.width - 30, 30))
+            all_clips.append(logo_clip)
+        except Exception as e:
+            print(f"Error adding logo from {logo_url}: {e}")
+
+    comp = CompositeVideoClip(all_clips, size=(W, H))
+    comp.write_videofile(out_video_path, fps=FPS, codec="libx264", audio=False, preset="medium", threads=4)
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Generate a gold price video with customization.")
+    parser.add_argument("--background_theme", type=str, default="random",
+                        help="Theme for background video (e.g., 'random', 'elegant', 'modern').")
+    parser.add_argument("--custom_message", type=str, default="",
+                        help="Custom message to display in the video.")
+    parser.add_argument("--logo_url", type=str, default="",
+                        help="URL of a logo image to overlay on the video.")
+    parser.add_argument("--output_video_path", type=str, default=OUT_VIDEO_PATH_DEFAULT,
+                        help="Path to save the output video.")
+    parser.add_argument("--output_image_path", type=str, default=OUT_IMAGE_PATH_DEFAULT,
+                        help="Path to save the output static image.")
+    args = parser.parse_args()
+
     try:
         entries = fetch_entries(URL)
     except Exception as e:
         print(f"Failed to fetch remote data: {e}")
         # Fallback to local cache if exists
-        cache = os.path.join("data", "gold_prices.json")
+        cache = os.path.join(SCRIPT_DIR, "data", "gold_prices.json")
         if os.path.exists(cache):
             with open(cache, "r", encoding="utf-8") as f:
                 entries = json.load(f)
@@ -687,15 +752,20 @@ def main():
             sys.exit(1)
 
     # Persist a local cache snapshot for repeatability
-    os.makedirs("data", exist_ok=True)
+    os.makedirs(os.path.join(SCRIPT_DIR, "data"), exist_ok=True)
     try:
-        with open(os.path.join("data", "gold_prices.json"), "w", encoding="utf-8") as f:
+        with open(os.path.join(SCRIPT_DIR, "data", "gold_prices.json"), "w", encoding="utf-8") as f:
             json.dump(entries, f, ensure_ascii=False, indent=2)
     except Exception:
         pass
 
-    build_video(entries, OUT_PATH)
-    print(f"Saved: out/{OUT_PATH}")
+    build_video(entries, args.output_video_path, 
+                background_theme=args.background_theme, 
+                custom_message=args.custom_message, 
+                logo_url=args.logo_url,
+                out_image_path=args.output_image_path)
+    print(f"Saved video: {args.output_video_path}")
+    print(f"Saved image: {args.output_image_path}")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gold Price Video Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #b8860b; /* DarkGoldenrod */
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 20px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 15px;
+        }
+        .section:last-child {
+            border-bottom: none;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        input[type="text"],
+        textarea,
+        select {
+            width: calc(100% - 22px);
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #b8860b; /* DarkGoldenrod */
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+        }
+        button:hover {
+            background-color: #a07a0a; /* Slightly darker */
+        }
+        .status-message {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+            text-align: center;
+            display: none; /* Hidden by default */
+        }
+        .status-message.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status-message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Gold Price Video Generator</h1>
+
+        <div class="section">
+            <p>Welcome to your automated video generation tool. Customize your gold price video below and generate content for your social media!</p>
+        </div>
+
+        <form id="video-generation-form">
+            <div class="section">
+                <h2>Video Customization</h2>
+                <label for="background_theme">Background Theme:</label>
+                <select id="background_theme" name="background_theme">
+                    <option value="random">Random</option>
+                    <option value="elegant">Elegant</option>
+                    <option value="modern">Modern</option>
+                    <!-- Add more options based on available assets -->
+                </select>
+
+                <label for="custom_message">Custom Message (optional):</label>
+                <input type="text" id="custom_message" name="custom_message" placeholder="E.g., 'ติดตามราคาทองคำวันนี้!'">
+
+                <label for="logo_url">Logo URL (optional):</label>
+                <input type="text" id="logo_url" name="logo_url" placeholder="E.g., 'https://yourwebsite.com/logo.png'">
+            </div>
+
+            <button type="submit">Generate Video</button>
+        </form>
+
+        <div id="status-area" class="status-message">
+            <!-- Status messages will appear here -->
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('video-generation-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const form = event.target;
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData.entries());
+
+            const statusArea = document.getElementById('status-area');
+            statusArea.style.display = 'block';
+            statusArea.className = 'status-message';
+            statusArea.textContent = 'Generating video... Please wait.';
+
+            fetch('/generate_video', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.status === 'success') {
+                    statusArea.className = 'status-message success';
+                    statusArea.textContent = result.message + ' ' + (result.output ? result.output.substring(0, 100) + '...' : '');
+                } else {
+                    statusArea.className = 'status-message error';
+                    statusArea.textContent = result.message + ' ' + (result.error_output ? result.error_output.substring(0, 200) + '...' : '');
+                }
+            })
+            .catch(error => {
+                statusArea.className = 'status-message error';
+                statusArea.textContent = 'An error occurred: ' + error.message;
+            });
+        });
+    </script>
+</body>
+</html>
